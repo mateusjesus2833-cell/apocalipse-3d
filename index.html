@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>APOCALIPSE 3D</title>
+<style>
+body{margin:0;overflow:hidden;background:#111;font-family:Arial;color:white}
+#hud{position:absolute;top:12px;left:12px;z-index:2;text-shadow:2px 2px #000}
+#controls{position:absolute;bottom:20px;left:0;right:0;display:flex;justify-content:space-around;z-index:3}
+button{background:#222c;color:white;border:2px solid #aaa;border-radius:12px;padding:18px;font-size:18px}
+#look{position:absolute;right:10px;bottom:100px;width:120px;height:100px;z-index:2;opacity:.2}
+</style>
+</head>
+<body>
+<div id="hud"><b>☣ APOCALIPSE 3D</b><br>Vida: <span id="life">100</span><br>Zumbis derrotados: <span id="score">0</span><br><small>Sobreviva ao apocalipse!</small></div>
+<div id="controls">
+<button id="left">◀</button><button id="forward">▲</button><button id="back">▼</button><button id="right">▶</button><button id="attack">⚔</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x87949a);
+scene.fog=new THREE.Fog(0x87949a,25,100);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,300);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.shadowMap.enabled=true;
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x353535,2));
+const sun=new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(10,20,10);scene.add(sun);
+const mat=(c)=>new THREE.MeshStandardMaterial({color:c,roughness:.9});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),mat(0x424941));
+ground.rotation.x=-Math.PI/2;ground.position.y=-.1;scene.add(ground);
+for(let i=0;i<180;i++){
+let x=(Math.random()-.5)*150,z=(Math.random()-.5)*150;
+if(Math.abs(x)<7&&Math.abs(z)<7)continue;
+let h=3+Math.random()*12,w=2+Math.random()*4;
+let b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),mat([0x555454,0x494d4a,0x625b50][i%3]));
+b.position.set(x,h/2,z);scene.add(b);
+let win=new THREE.Mesh(new THREE.BoxGeometry(.12,h*.65,w+.03),mat(0x252d30));
+win.position.set(x,h*.52,z+w/2+.02);scene.add(win);
+}
+const player=new THREE.Group();scene.add(player);
+const body=new THREE.Mesh(new THREE.BoxGeometry(.7,1.1,.4),mat(0x34483b));body.position.y=1.25;player.add(body);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.27,12,10),mat(0xc99e7a));head.position.y=2;player.add(head);
+for(let s of [-1,1]){
+let leg=new THREE.Mesh(new THREE.BoxGeometry(.23,.7,.25),mat(0x292d2b));leg.position.set(s*.2,.4,0);player.add(leg);
+let arm=new THREE.Mesh(new THREE.BoxGeometry(.2,.8,.22),mat(0x34483b));arm.position.set(s*.48,1.3,0);player.add(arm);
+}
+player.position.set(0,0,4);
+const zombies=[];
+function zombie(x,z){
+let g=new THREE.Group();
+let skin=mat(0x657d50);
+let torso=new THREE.Mesh(new THREE.BoxGeometry(.7,1,.4),mat(0x55453d));torso.position.y=1.2;g.add(torso);
+let h=new THREE.Mesh(new THREE.SphereGeometry(.27,10,8),skin);h.position.y=1.9;g.add(h);
+for(let s of [-1,1]){
+let l=new THREE.Mesh(new THREE.BoxGeometry(.22,.65,.23),skin);l.position.set(s*.2,.35,0);g.add(l);
+let a=new THREE.Mesh(new THREE.BoxGeometry(.18,.7,.2),skin);a.position.set(s*.45,1.35,-.1);g.add(a);
+}
+g.position.set(x,0,z);scene.add(g);zombies.push(g);
+}
+for(let i=0;i<12;i++){let a=Math.random()*Math.PI*2,r=12+Math.random()*35;zombie(Math.cos(a)*r,Math.sin(a)*r);}
+let keys={},life=100,score=0,lastHit=0;
+for(let id of ['left','right','forward','back','attack']){
+let el=document.getElementById(id);
+el.addEventListener('touchstart',e=>{e.preventDefault();keys[id]=true},{passive:false});
+el.addEventListener('touchend',()=>keys[id]=false);
+el.addEventListener('mousedown',()=>keys[id]=true);
+el.addEventListener('mouseup',()=>keys[id]=false);
+}
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key===' ')keys.attack=true});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;keys.attack=false});
+let yaw=0;
+renderer.domElement.addEventListener('touchstart',e=>{if(e.touches[0].clientX>innerWidth*.55)window.lastX=e.touches[0].clientX});
+renderer.domElement.addEventListener('touchmove',e=>{if(window.lastX!==undefined&&e.touches[0].clientX>innerWidth*.55){yaw-=(e.touches[0].clientX-window.lastX)*.006;window.lastX=e.touches[0].clientX}});
+renderer.domElement.addEventListener('touchend',()=>window.lastX=undefined);
+function animate(){
+requestAnimationFrame(animate);
+let speed=.12;
+if(keys.forward||keys['w']||keys['arrowup']){player.position.x-=Math.sin(yaw)*speed;player.position.z-=Math.cos(yaw)*speed}
+if(keys.back||keys['s']||keys['arrowdown']){player.position.x+=Math.sin(yaw)*speed;player.position.z+=Math.cos(yaw)*speed}
+if(keys.left||keys['a']||keys['arrowleft'])yaw+=.045;
+if(keys.right||keys['d']||keys['arrowright'])yaw-=.045;
+player.rotation.y=yaw;
+camera.position.set(player.position.x+Math.sin(yaw)*5,player.position.y+4,player.position.z+Math.cos(yaw)*7);
+camera.lookAt(player.position.x,1.3,player.position.z);
+let now=Date.now();
+for(let i=zombies.length-1;i>=0;i--){
+let z=zombies[i],dx=player.position.x-z.position.x,dz=player.position.z-z.position.z,d=Math.hypot(dx,dz);
+if(d>1.5){z.position.x+=dx/d*.025;z.position.z+=dz/d*.025;z.lookAt(player.position.x,0,player.position.z)}
+else if(now-lastHit>900){life=Math.max(0,life-5);lastHit=now;document.getElementById('life').textContent=life}
+if(keys.attack&&d<3){scene.remove(z);zombies.splice(i,1);score++;document.getElementById('score').textContent=score;keys.attack=false;zombie(player.position.x+(Math.random()-.5)*35,player.position.z-25)}
+}
+if(life<=0){document.getElementById('hud').innerHTML='<b>☠ VOCÊ FOI DERROTADO</b><br>Zumbis derrotados: '+score+'<br><button onclick="location.reload()">Jogar novamente</button>'}
+renderer.render(scene,camera);
+}
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+animate();
+</script>
+</body>
+  </html>
+  
